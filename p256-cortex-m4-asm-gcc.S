@@ -1535,7 +1535,7 @@ P256_times2:
 	.size P256_times2, .-P256_times2
 #endif
 
-#if include_p256_verify || include_p256_varmult || include_p256_decompress_point
+#if include_p256_verify || include_p256_varmult || include_p256_decompress_point || include_p256_decode_point
 	.align 2
 	// (2^256)^2 mod p
 R2_mod_p:
