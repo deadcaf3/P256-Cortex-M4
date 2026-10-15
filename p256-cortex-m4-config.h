@@ -117,6 +117,18 @@
 #endif
 
 /**
+ * Number of precomputed tables used by the specialized base point scalar multiplication routine
+ * (see use_fast_p256_basemult). Valid values are 2, 4 and 8.
+ * Each table takes 512 bytes of code space. With N tables, a scalar multiplication needs 64/N - 1
+ * point doublings (31, 15 or 7) and 63 point additions, so more tables make keygen and sign faster.
+ * When has_d_cache is 0, the tables are also copied to the stack during the scalar multiplication,
+ * so stack usage grows by the same amount (1, 2 or 4 kB).
+ */
+#ifndef fast_p256_basemult_tables
+#define fast_p256_basemult_tables 2
+#endif
+
+/**
  * Enable this to save some code space, at expense of performance.
  * When disabled, a specialized field squaring routine will be used rather
  * than re-using the multiplication routine.
