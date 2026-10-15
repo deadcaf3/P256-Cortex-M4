@@ -358,6 +358,11 @@ async function ecdsaVerifyTests() {
 					return;
 				}
 				let num = sig.slice(pos + 2, pos + 2 + len);
+				if (num[0] & 0x80) {
+					// Negative DER INTEGER (e.g. missing leading zero): an encoding error, not a valid r or s
+					assert.equal(test.result, 'invalid', test.tcId);
+					return;
+				}
 				if (num.length == 33) {
 					if (num[0] !== 0) {
 						assert.equal(test.result, 'invalid');
