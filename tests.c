@@ -1831,6 +1831,10 @@ bool run_tests(void) {
 		if (p256_verify(t->key, t->key + 8, t->msg, 32, t->sig, t->sig + 8) != t->result) {
 			return false;
 		}
+		struct VerifyPrecomp ctx;
+		if ((p256_verify_prepare(&ctx, t->key, t->key + 8) && p256_verify_prepared(&ctx, t->msg, 32, t->sig, t->sig + 8)) != t->result) {
+			return false;
+		}
 	}
 	for (int i = 0; i < COUNTOF(ecdh_tests); i++) {
 		const struct EcdhTest* t = &ecdh_tests[i];

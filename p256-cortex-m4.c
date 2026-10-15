@@ -52,6 +52,7 @@ void P256_matrix_mul_mod_n(uint32_t a, uint32_t b, const struct XYInteger xy[2],
 
 void P256_to_montgomery(uint32_t aR[8], const uint32_t a[8]);
 void P256_from_montgomery(uint32_t a[8], const uint32_t aR[8]);
+void P256_mul_mod_p(uint32_t res[8], const uint32_t aR[8], const uint32_t bR[8]);
 bool P256_check_range_p(const uint32_t a[8]);
 
 bool P256_check_range_n(const uint32_t a[8]);
@@ -78,7 +79,7 @@ extern uint32_t P256_order[9];
 static const uint32_t one_montgomery[8] = {1, 0, 0, 0xffffffff, 0xffffffff, 0xffffffff, 0xfffffffe, 0};
 #endif
 
-#if include_p256_verify
+#if include_p256_verify || include_p256_verify_prepared
 // This table contains 1G, 3G, 5G, ... 15G in affine coordinates in montgomery form
 static const uint32_t p256_basepoint_precomp[8][2][8] = {
 {{0x18a9143c, 0x79e730d4, 0x5fedb601, 0x75ba95fc, 0x77622510, 0x79fb732b, 0xa53755c6, 0x18905f76},
@@ -97,6 +98,28 @@ static const uint32_t p256_basepoint_precomp[8][2][8] = {
 {0xc00ee17f, 0x35752b90, 0x742ed2e3, 0x68748390, 0xbd1f5bc1, 0x7cd06422, 0xc9e7b797, 0xfbc08769}},
 {{0xbc60055b, 0x72bcd8b7, 0x56e27e4b, 0x3cc23ee, 0xe4819370, 0xee337424, 0xad3da09, 0xe2aa0e43},
 {0x6383c45d, 0x40b8524f, 0x42a41b25, 0xd7663554, 0x778a4797, 0x64efa6de, 0x7079adf4, 0x2042170a}}
+};
+#endif
+
+#if include_p256_verify_prepared
+// This table contains 1*2^128G, 3*2^128G, 5*2^128G, ... 15*2^128G in affine coordinates in montgomery form
+static const uint32_t p256_basepoint_2_128_precomp[8][2][8] = {
+{{0xbfe20925, 0x62a8c244, 0x8fdce867, 0x91c19ac3, 0xdd387063, 0x5a96a5d5, 0x21d324f6, 0x61d587d4},
+{0xa37173ea, 0xe87673a2, 0x53778b65, 0x23848008, 0x5bab43e, 0x10f8441e, 0x4621efbe, 0xfa11fe12}},
+{{0xb2335834, 0xc0f734a3, 0x90ef6860, 0x9526205a, 0x4e2bb0d, 0xcb8be717, 0x2f383fa, 0x2418871e},
+{0x4082c157, 0xd7177681, 0x29c20073, 0xcc914ad0, 0xe587e728, 0xf186c1eb, 0x61bcd5fd, 0x6fdb3c22}},
+{{0x2cf9d7c1, 0xcc7c4c1c, 0xee95e5ab, 0x1320886a, 0xbeae170c, 0xbb7b9056, 0xdbc0d662, 0xc8a5b250},
+{0xc11d2303, 0x4ed81432, 0x1f03769f, 0x7da66912, 0x84539828, 0x3ac7a5fd, 0x3bccdd02, 0x14dada94}},
+{{0xcbae2f70, 0x51b90651, 0x93aaa8eb, 0xefc4bc05, 0xdd1df499, 0x8ecd8689, 0x22f367a5, 0x1aee99a8},
+{0xae8274c5, 0x95d485b9, 0x7d30b39c, 0x6c14d445, 0xbcc1ef81, 0xbafea90b, 0xa459a2ed, 0x7c5f317a}},
+{{0xdeeaf52, 0x410dc6a9, 0x4c641c15, 0xb003fb02, 0x5bc504c4, 0x1384978c, 0x864a6a77, 0x37640487},
+{0x222a77da, 0x5991bc6, 0x5e47eb11, 0x62260a57, 0xf21b432c, 0xc7af6613, 0xab4953e9, 0x22f3acc9}},
+{{0xc24efc8, 0xd094277, 0xbef737a4, 0x349fd04, 0x514cdd28, 0x6d1c9dd2, 0x30da9521, 0x29c135ff},
+{0xf78b0b6f, 0xea6e4508, 0x678c143c, 0x176f5dd2, 0x4be21e65, 0x8148418, 0xe7df38c4, 0x27f7525c}},
+{{0xe4652f1d, 0x9faaccf5, 0xd56157b2, 0xbd6fdd2a, 0x6261ec50, 0xa4f4fb1f, 0x476bcd52, 0x244e55ad},
+{0x47d320b, 0x881c9305, 0x6181263f, 0x1ca983d5, 0x278fb8ee, 0x354e9a44, 0x396e4964, 0xad2dbc0f}},
+{{0x88a2ffe4, 0xfce01767, 0x28e169a5, 0xdc506a35, 0x7af9c93a, 0xea10861, 0x3fa0e08, 0x1ed24361},
+{0xa3d694e7, 0x96eaaa92, 0xef50bc74, 0xc0f43b4d, 0x64114db4, 0xce6aa58c, 0x7c000fd4, 0x8218e8ea}}
 };
 #endif
 
@@ -277,7 +300,7 @@ static const uint32_t p256_basepoint_precomp2[fast_p256_basemult_tables][8][2][8
 };
 #endif
 
-#if include_p256_verify || include_p256_sign
+#if include_p256_verify || include_p256_verify_prepared || include_p256_sign
 // Takes the leftmost 256 bits in hash (treated as big endian),
 // and converts to little endian integer z.
 static void hash_to_z(uint32_t z[8], const uint8_t* hash, uint32_t hashlen) {
@@ -293,7 +316,7 @@ static void hash_to_z(uint32_t z[8], const uint8_t* hash, uint32_t hashlen) {
 }
 #endif
 
-#if include_p256_verify
+#if include_p256_verify || include_p256_verify_prepared
 // Creates a representation of a (little endian integer),
 // so that r[0] + 2*r[1] + 2^2*r[2] + 2^3*r[3] + ... = a,
 // where each r[i] is -15, -13, ..., 11, 13, 15 or 0.
@@ -536,7 +559,7 @@ static void scalarmult_fixed_base(uint32_t output_mont_x[8], uint32_t output_mon
 }
 #else
 static void scalarmult_fixed_base(uint32_t output_mont_x[8], uint32_t output_mont_y[8], const uint32_t scalar[8]) {
-    #if !include_p256_verify
+    #if !(include_p256_verify || include_p256_verify_prepared)
     static const uint32_t p[2][8] =
     {{0x18a9143c, 0x79e730d4, 0x5fedb601, 0x75ba95fc, 0x77622510, 0x79fb732b, 0xa53755c6, 0x18905f76},
     {0xce95560a, 0xddf25357, 0xba19e45c, 0x8b4ab8e4, 0xdd21f325, 0xd2e88688, 0x25885d85, 0x8571ff18}};
@@ -615,6 +638,127 @@ bool p256_verify(const uint32_t public_key_x[8], const uint32_t public_key_y[8],
             P256_add_sub_j(cp, (constarr)pk_table[slide_pk[i]/2], 0, 0);
         } else if (slide_pk[i] < 0) {
             P256_add_sub_j(cp, (constarr)pk_table[(-slide_pk[i])/2], 1, 0);
+        }
+    }
+    
+    return P256_verify_last_step(r, (constarr)cp);
+}
+#endif
+
+#if include_p256_verify_prepared
+bool p256_verify_prepare(struct VerifyPrecomp *ctx, const uint32_t public_key_x[8], const uint32_t public_key_y[8]) {
+    do {
+        if (!P256_check_range_p(public_key_x) || !P256_check_range_p(public_key_y)) {
+            break;
+        }
+        
+        // Jacobian points P, 3P, 5P, ..., 15P, for P = Q at index 0 to 7 and P = 2^128*Q at index 8 to 15, where Q is the public key.
+        uint32_t points[16][3][8];
+        P256_to_montgomery(points[0][0], public_key_x);
+        P256_to_montgomery(points[0][1], public_key_y);
+        memcpy(points[0][2], one_montgomery, 32);
+        
+        if (!P256_point_is_on_curve(points[0][0], points[0][1])) {
+            break;
+        }
+        
+        P256_double_j(points[8], (constarr)points[0]);
+        for (int i = 1; i < 128; i++) {
+            P256_double_j(points[8], (constarr)points[8]);
+        }
+        
+        for (int t = 0; t < 16; t += 8) {
+            P256_double_j(points[t + 7], (constarr)points[t]);
+            for (int i = t + 1; i < t + 8; i++) {
+                memcpy(points[i], points[t + 7], 96);
+                P256_add_sub_j(points[i], (constarr)points[i - 1], 0, 0);
+            }
+        }
+        
+        // Convert all points to affine coordinates using a single field inversion (Montgomery's trick).
+        // The products Z_0*Z_1*...*Z_i are kept in the y coordinate of ctx->table[i] until point i is converted.
+        memcpy(ctx->table[0][1], points[0][2], 32);
+        for (int i = 1; i < 16; i++) {
+            P256_mul_mod_p(ctx->table[i][1], ctx->table[i - 1][1], points[i][2]);
+        }
+        
+        // The inverse of a is the affine x coordinate X/Z^2 of the jacobian point (X, Y, Z) = (a, a, a).
+        uint32_t inv[8], unused[8], a[3][8];
+        memcpy(a[0], ctx->table[15][1], 32);
+        memcpy(a[1], ctx->table[15][1], 32);
+        memcpy(a[2], ctx->table[15][1], 32);
+        P256_jacobian_to_affine(inv, unused, (constarr)a);
+        
+        for (int i = 15; i >= 0; i--) {
+            // Here inv = 1/(Z_0*Z_1*...*Z_i)
+            uint32_t z_inv[8], z_inv_pow[8];
+            if (i > 0) {
+                P256_mul_mod_p(z_inv, inv, ctx->table[i - 1][1]);
+                P256_mul_mod_p(inv, inv, points[i][2]);
+            } else {
+                memcpy(z_inv, inv, 32);
+            }
+            P256_mul_mod_p(z_inv_pow, z_inv, z_inv);
+            P256_mul_mod_p(ctx->table[i][0], points[i][0], z_inv_pow);
+            P256_mul_mod_p(z_inv_pow, z_inv_pow, z_inv);
+            P256_mul_mod_p(ctx->table[i][1], points[i][1], z_inv_pow);
+        }
+        return true;
+    } while (false);
+    
+    memset(ctx, 0, sizeof(struct VerifyPrecomp));
+    return false;
+}
+
+// Adds (digit > 0) or subtracts (digit < 0) point abs(digit)/2 of an affine table to/from the jacobian point,
+// where the table contains the odd multiples 1P, 3P, ..., 15P.
+static void add_slide_digit(uint32_t point[3][8], const uint32_t (*table)[2][8], signed char digit) {
+    if (digit > 0) {
+        P256_add_sub_j(point, table[digit/2], 0, 1);
+    } else if (digit < 0) {
+        P256_add_sub_j(point, table[(-digit)/2], 1, 1);
+    }
+}
+
+bool p256_verify_prepared(const struct VerifyPrecomp *ctx, const uint8_t* hash, uint32_t hashlen_in_bytes, const uint32_t r[8], const uint32_t s[8]) {
+    if (!P256_check_range_n(r) || !P256_check_range_n(s)) {
+        return false;
+    }
+    
+    // Just make sure user did not input an obviously invalid precomp, such as the zeroed one from a failed p256_verify_prepare
+    if (!P256_point_is_on_curve(ctx->table[0][0], ctx->table[0][1])) {
+        return false;
+    }
+    
+    uint32_t z[8], w[8], u1[8], u2[8];
+    
+    hash_to_z(z, hash, hashlen_in_bytes);
+    
+    #if include_p256_sign
+    P256_mod_n_inv(w, s);
+    #else
+    // Use smaller implementation if we don't need constant time version
+    P256_mod_n_inv_vartime(w, s);
+    #endif
+    
+    P256_mul_mod_n(u1, z, w);
+    P256_mul_mod_n(u2, r, w);
+    
+    signed char slide_bp[257], slide_pk[257];
+    slide_257(slide_bp, (uint8_t*)u1);
+    slide_257(slide_pk, (uint8_t*)u2);
+    
+    // u1*G + u2*Q is computed as a sum over i of 2^i*(slide_bp[i]*G + slide_bp[i + 128]*2^128*G + slide_pk[i]*Q + slide_pk[i + 128]*2^128*Q),
+    // so only 129 doublings are needed.
+    uint32_t cp[3][8] = {0};
+    
+    for (int i = 128; i >= 0; i--) {
+        P256_double_j(cp, (constarr)cp);
+        add_slide_digit(cp, p256_basepoint_2_128_precomp, slide_bp[i + 128]);
+        add_slide_digit(cp, ctx->table + 8, slide_pk[i + 128]);
+        if (i < 128) {
+            add_slide_digit(cp, p256_basepoint_precomp, slide_bp[i]);
+            add_slide_digit(cp, ctx->table, slide_pk[i]);
         }
     }
     

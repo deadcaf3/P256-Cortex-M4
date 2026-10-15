@@ -34,6 +34,10 @@
 #define include_p256_verify 1
 #endif
 
+#ifndef include_p256_verify_prepared
+#define include_p256_verify_prepared 1
+#endif
+
 #ifndef include_p256_sign
 #define include_p256_sign 1
 #endif
@@ -141,6 +145,6 @@
 #define include_p256_basemult (include_p256_keygen || include_p256_sign || include_p256_raw_scalarmult_base)
 #define include_fast_p256_basemult (use_fast_p256_basemult && include_p256_basemult)
 #define include_p256_varmult (include_p256_ecdh || include_p256_raw_scalarmult_generic)
-#define include_p256_mult (include_p256_verify || include_p256_basemult || include_p256_varmult)
+#define include_p256_mult (include_p256_verify || include_p256_verify_prepared || include_p256_basemult || include_p256_varmult)
 
 #endif
