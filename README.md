@@ -133,6 +133,8 @@ The same technique can be used for public keys.
 
 The library has been tested against test vectors from Project Wycheproof (https://github.com/google/wycheproof). `tests.c` is pre-generated from Wycheproof vectors pinned to a fixed commit (`WYCHEPROOF_COMMIT` in `testgen.js`); to regenerate it, execute `node testgen.js > tests.c` using Node >= 10.4. To run the tests, add the project files according to "How to use" plus `tests.c` and `nrf52_tests_main.c` to a new clean nRF52840 project using e.g. Segger Embedded Studio or Keil µVision. Compile and run and make sure all tests pass, by verifying that `main` returns 0.
 
+The same tests can also run without hardware on emulated Cortex-M4 and Cortex-M33 boards: with `arm-none-eabi-gcc` and `qemu-system-arm` installed, run `make -C test/qemu` for the default configuration or `make -C test/qemu matrix` for all 32 combinations of CPU, `has_fpu`, `has_d_cache`, `use_mul_for_sqr` and `use_fast_p256_basemult`.
+
 Currently the work has been tested successfully on nRF52840, nRF5340 and MAX32670.
 
 ### Performance
