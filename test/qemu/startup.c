@@ -62,15 +62,37 @@ static void (*const vectors[16])(void) = {
 
 // No C library is linked; these are the only libc functions the library and tests need.
 // Built with -fno-tree-loop-distribute-patterns so GCC doesn't turn the loops back into calls.
+// Aligned buffers (all of the library's) are handled a word at a time, like a real libc, so that
+// benchmark instruction counts are not inflated by byte-wise copies.
 void *memcpy(void *dst, const void *src, size_t n) {
     uint8_t *d = dst;
     const uint8_t *s = src;
+    if ((((uintptr_t)d | (uintptr_t)s) & 3) == 0) {
+        uint32_t *dw = (uint32_t *)d;
+        const uint32_t *sw = (const uint32_t *)s;
+        for (; n >= 16; n -= 16, dw += 4, sw += 4) {
+            uint32_t a = sw[0], b = sw[1], c = sw[2], e = sw[3];
+            dw[0] = a; dw[1] = b; dw[2] = c; dw[3] = e;
+        }
+        for (; n >= 4; n -= 4) *dw++ = *sw++;
+        d = (uint8_t *)dw;
+        s = (const uint8_t *)sw;
+    }
     while (n--) *d++ = *s++;
     return dst;
 }
 
 void *memset(void *dst, int c, size_t n) {
     uint8_t *d = dst;
+    if (((uintptr_t)d & 3) == 0) {
+        uint32_t w = (uint8_t)c * 0x01010101U;
+        uint32_t *dw = (uint32_t *)d;
+        for (; n >= 16; n -= 16, dw += 4) {
+            dw[0] = w; dw[1] = w; dw[2] = w; dw[3] = w;
+        }
+        for (; n >= 4; n -= 4) *dw++ = w;
+        d = (uint8_t *)dw;
+    }
     while (n--) *d++ = (uint8_t)c;
     return dst;
 }
