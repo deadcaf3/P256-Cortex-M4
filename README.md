@@ -131,7 +131,7 @@ The same technique can be used for public keys.
 
 ### Testing
 
-The library has been tested against test vectors from Project Wycheproof (https://github.com/google/wycheproof). To run the tests, first execute `node testgen.js > tests.c` using Node >= 10.4. Then add the project files according to "How to use" plus `tests.c` and `nrf52_tests_main.c` to a new clean nRF52840 project using e.g. Segger Embedded Studio or Keil µVision. Compile and run and make sure all tests pass, by verifying that `main` returns 0.
+The library has been tested against test vectors from Project Wycheproof (https://github.com/google/wycheproof). `tests.c` is pre-generated from Wycheproof vectors pinned to a fixed commit (`WYCHEPROOF_COMMIT` in `testgen.js`); to regenerate it, execute `node testgen.js > tests.c` using Node >= 10.4. To run the tests, add the project files according to "How to use" plus `tests.c` and `nrf52_tests_main.c` to a new clean nRF52840 project using e.g. Segger Embedded Studio or Keil µVision. Compile and run and make sure all tests pass, by verifying that `main` returns 0.
 
 Currently the work has been tested successfully on nRF52840, nRF5340 and MAX32670.
 
