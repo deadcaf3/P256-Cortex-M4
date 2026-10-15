@@ -3,6 +3,7 @@
 #   make                 default config: CPU=m4 FPU=1 DCACHE=0 MULSQR=0 FASTBASE=1
 #   make CPU=m33 FPU=0   any single config
 #   make matrix          all 32 combinations of CPU/FPU/DCACHE/MULSQR/FASTBASE
+#   EXTRA_DEFS="-Dx=1"   extra config defines, applied to any of the above
 #
 # Requires arm-none-eabi-gcc and qemu-system-arm.
 
@@ -34,9 +35,9 @@ else
 ARCHFLAGS := -mcpu=$(MCPU)+nofp -mfloat-abi=soft
 endif
 
-CONFIG := $(CPU)-fpu$(FPU)-dcache$(DCACHE)-mulsqr$(MULSQR)-fastbase$(FASTBASE)
+CONFIG := $(CPU)-fpu$(FPU)-dcache$(DCACHE)-mulsqr$(MULSQR)-fastbase$(FASTBASE)$(subst $() ,,$(EXTRA_DEFS))
 OUT    := build/$(CONFIG)
-DEFS   := -Dhas_fpu=$(FPU) -Dhas_d_cache=$(DCACHE) -Duse_mul_for_sqr=$(MULSQR) -Duse_fast_p256_basemult=$(FASTBASE)
+DEFS   := -Dhas_fpu=$(FPU) -Dhas_d_cache=$(DCACHE) -Duse_mul_for_sqr=$(MULSQR) -Duse_fast_p256_basemult=$(FASTBASE) $(EXTRA_DEFS)
 CFLAGS := $(ARCHFLAGS) -mthumb -O2 -g -ffreestanding -fno-tree-loop-distribute-patterns -Wall $(DEFS) -Iinclude -I$(ROOT)
 LDFLAGS := $(ARCHFLAGS) -mthumb -nostdlib -L. -T $(MACHINE).ld -Wl,--gc-sections
 
