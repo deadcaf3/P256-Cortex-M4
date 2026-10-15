@@ -4,8 +4,9 @@
 #   make CPU=m33 FPU=0   any single config
 #   make matrix          all 32 combinations of CPU/FPU/DCACHE/MULSQR/FASTBASE
 #   EXTRA_DEFS="-Dx=1"   extra config defines, applied to any of the above
+#   make bench           instruction counts per operation (p256_bench.c), for any single config
 #
-# Requires arm-none-eabi-gcc and qemu-system-arm.
+# Requires arm-none-eabi-gcc and qemu-system-arm; bench also needs a host C compiler and glib (pkg-config).
 
 CPU      ?= m4
 FPU      ?= 1
@@ -41,17 +42,34 @@ DEFS   := -Dhas_fpu=$(FPU) -Dhas_d_cache=$(DCACHE) -Duse_mul_for_sqr=$(MULSQR) -
 CFLAGS := $(ARCHFLAGS) -mthumb -O2 -g -ffreestanding -fno-tree-loop-distribute-patterns -Wall $(DEFS) -Iinclude -I$(ROOT)
 LDFLAGS := $(ARCHFLAGS) -mthumb -nostdlib -L. -T $(MACHINE).ld -Wl,--gc-sections
 
-SRCS := $(ROOT)/p256-cortex-m4.c $(ROOT)/p256-cortex-m4-asm-gcc.S $(ROOT)/tests.c startup.c
+LIB  := $(ROOT)/p256-cortex-m4.c $(ROOT)/p256-cortex-m4-asm-gcc.S startup.c
 HDRS := $(ROOT)/p256-cortex-m4.h $(ROOT)/p256-cortex-m4-config.h include/string.h
+RUN  := $(QEMU) -M $(MACHINE) -nographic -semihosting-config enable=on,target=native
 
-.PHONY: test matrix clean
+HOST_OS := $(shell uname)
+HOSTCC  ?= $(firstword $(wildcard /usr/bin/cc) cc)
+PLUGIN  := build/libinsncount.$(if $(filter Darwin,$(HOST_OS)),dylib,so)
+
+.PHONY: test matrix bench clean
 
 test: $(OUT)/tests.elf
-	@printf '%-40s ' $(CONFIG); $(QEMU) -M $(MACHINE) -nographic -semihosting-config enable=on,target=native -kernel $<
+	@printf '%-40s ' $(CONFIG); $(RUN) -kernel $<
 
-$(OUT)/tests.elf: $(SRCS) $(HDRS) $(MACHINE).ld sections.ld Makefile
+bench: $(OUT)/bench.elf $(PLUGIN)
+	@echo "$(CONFIG): instructions per operation (QEMU does not count cycles)"; $(RUN) -plugin $(PLUGIN) -kernel $<
+
+$(OUT)/tests.elf: $(LIB) $(ROOT)/tests.c tests_main.c $(HDRS) $(MACHINE).ld sections.ld Makefile
 	@mkdir -p $(OUT)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(SRCS) -lgcc
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(LIB) $(ROOT)/tests.c tests_main.c -lgcc
+
+$(OUT)/bench.elf: $(LIB) $(ROOT)/p256_bench.c bench_main.c $(HDRS) $(MACHINE).ld sections.ld Makefile
+	@mkdir -p $(OUT)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(LIB) $(ROOT)/p256_bench.c bench_main.c -lgcc
+
+$(PLUGIN): insncount.c Makefile
+	@mkdir -p build
+	$(HOSTCC) -O2 -shared -fPIC $(shell pkg-config --cflags glib-2.0) -I$(dir $(shell command -v $(QEMU)))../include \
+		$(if $(filter Darwin,$(HOST_OS)),-undefined dynamic_lookup) -o $@ $<
 
 matrix:
 	@fail=0; \

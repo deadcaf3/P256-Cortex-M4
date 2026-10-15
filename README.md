@@ -152,6 +152,8 @@ With all features enabled, the full library takes 8.9 kB in compiled form. 1.5 k
 
 The stack usage is at most 2 kB.
 
+To measure on hardware, build `p256_bench.c` and `nrf52_bench_main.c` (instead of the test files) and read `bench_cycles` in the debugger; it uses the DWT cycle counter, so porting it to another Cortex-M board only needs a different `main`. Without hardware, `make -C test/qemu bench` reports instructions per operation under QEMU. Instruction counts are not cycles, but they are useful for comparing changes.
+
 ### Security
 The implementation runs in constant time (unless input values are invalid) and uses a constant code memory access pattern, regardless of the scalar/private key in order to protect against side channel attacks. If desired, in particular when the processor has a data cache (like Cortex-A processors), the `has_d_cache` option can be enabled which also causes the RAM access pattern to be constant, at the expense of ~10% performance decrease.
 

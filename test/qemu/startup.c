@@ -1,6 +1,6 @@
 /*
- * Minimal bare-metal startup for running tests.c under QEMU (mps2-an386 / mps2-an505).
- * Results are reported through Arm semihosting, so QEMU's exit status is the test result.
+ * Minimal bare-metal startup for running code under QEMU (mps2-an386 / mps2-an505).
+ * Output and the exit status go through Arm semihosting, so QEMU's exit status is the result.
  */
 
 #include <stdint.h>
@@ -8,7 +8,7 @@
 #include <stddef.h>
 #include <string.h>
 
-bool run_tests(void);
+int main(void);
 
 extern uint32_t _sidata, _sdata, _edata, _sbss, _ebss, _estack;
 
@@ -24,24 +24,18 @@ static uint32_t semihost(uint32_t op, uint32_t arg) {
     return r0;
 }
 
-static void puts_host(const char *s) {
+void semihost_puts(const char *s) {
     semihost(SYS_WRITE0, (uint32_t)s);
 }
 
-static void __attribute__((noreturn)) exit_host(bool ok) {
+void __attribute__((noreturn)) semihost_exit(bool ok) {
     semihost(SYS_EXIT, ok ? ADP_Stopped_ApplicationExit : ADP_Stopped_RunTimeErrorUnknown);
     for (;;);
 }
 
 void Default_Handler(void) {
-    puts_host("FAULT\n");
-    exit_host(false);
-}
-
-int main(void) {
-    bool ok = run_tests();
-    puts_host(ok ? "PASS\n" : "FAIL\n");
-    exit_host(ok);
+    semihost_puts("FAULT\n");
+    semihost_exit(false);
 }
 
 void Reset_Handler(void) {
@@ -56,7 +50,7 @@ void Reset_Handler(void) {
     for (uint32_t *dst = &_sbss; dst < &_ebss;) {
         *dst++ = 0;
     }
-    main();
+    semihost_exit(main() == 0);
 }
 
 __attribute__((section(".isr_vector"), used))
