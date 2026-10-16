@@ -43,6 +43,19 @@ bool p256_bench(void (*report)(const char *name, uint32_t count)) {
     report("verify", p256_bench_counter() - t);
     if (!ok) return false;
 
+#if include_p256_verify_prepared
+    struct VerifyPrecomp ctx;
+    t = p256_bench_counter();
+    ok = p256_verify_prepare(&ctx, pub_x, pub_y);
+    report("vfy_prepare", p256_bench_counter() - t);
+    if (!ok) return false;
+
+    t = p256_bench_counter();
+    ok = p256_verify_prepared(&ctx, hash, sizeof(hash), r, s);
+    report("vfy_prepared", p256_bench_counter() - t);
+    if (!ok) return false;
+#endif
+
     t = p256_bench_counter();
     ok = p256_ecdh_calc_shared_secret(shared, priv2, pub_x, pub_y);
     report("ecdh", p256_bench_counter() - t);

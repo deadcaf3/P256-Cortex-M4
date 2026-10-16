@@ -1,8 +1,8 @@
 # Runs tests.c on emulated Cortex-M4 (mps2-an386) and Cortex-M33 (mps2-an505) under QEMU.
 #
-#   make                 default config: CPU=m4 FPU=1 DCACHE=0 MULSQR=0 FASTBASE=1
+#   make                 default config: CPU=m4 FPU=1 DCACHE=0 MULSQR=0 FASTBASE=1 TABLES=2
 #   make CPU=m33 FPU=0   any single config
-#   make matrix          all 32 combinations of CPU/FPU/DCACHE/MULSQR/FASTBASE
+#   make matrix          all 64 combinations of CPU/FPU/DCACHE/MULSQR and FASTBASE=0, or FASTBASE=1 with TABLES=2/4/8
 #   EXTRA_DEFS="-Dx=1"   extra config defines, applied to any of the above
 #   make bench           instruction counts per operation (p256_bench.c), for any single config
 #
@@ -13,6 +13,7 @@ FPU      ?= 1
 DCACHE   ?= 0
 MULSQR   ?= 0
 FASTBASE ?= 1
+TABLES   ?= 2
 
 CC   := arm-none-eabi-gcc
 QEMU := qemu-system-arm
@@ -36,9 +37,10 @@ else
 ARCHFLAGS := -mcpu=$(MCPU)+nofp -mfloat-abi=soft
 endif
 
-CONFIG := $(CPU)-fpu$(FPU)-dcache$(DCACHE)-mulsqr$(MULSQR)-fastbase$(FASTBASE)$(subst $() ,,$(EXTRA_DEFS))
+CONFIG := $(CPU)-fpu$(FPU)-dcache$(DCACHE)-mulsqr$(MULSQR)-fastbase$(FASTBASE)-tables$(TABLES)$(subst $() ,,$(EXTRA_DEFS))
 OUT    := build/$(CONFIG)
-DEFS   := -Dhas_fpu=$(FPU) -Dhas_d_cache=$(DCACHE) -Duse_mul_for_sqr=$(MULSQR) -Duse_fast_p256_basemult=$(FASTBASE) $(EXTRA_DEFS)
+DEFS   := -Dhas_fpu=$(FPU) -Dhas_d_cache=$(DCACHE) -Duse_mul_for_sqr=$(MULSQR) -Duse_fast_p256_basemult=$(FASTBASE) \
+          -Dfast_p256_basemult_tables=$(TABLES) $(EXTRA_DEFS)
 CFLAGS := $(ARCHFLAGS) -mthumb -O2 -g -ffreestanding -fno-tree-loop-distribute-patterns -Wall $(DEFS) -Iinclude -I$(ROOT)
 LDFLAGS := $(ARCHFLAGS) -mthumb -nostdlib -L. -T $(MACHINE).ld -Wl,--gc-sections
 
@@ -73,8 +75,8 @@ $(PLUGIN): insncount.c Makefile
 
 matrix:
 	@fail=0; \
-	for cpu in m4 m33; do for fpu in 0 1; do for dc in 0 1; do for ms in 0 1; do for fb in 0 1; do \
-		$(MAKE) -s test CPU=$$cpu FPU=$$fpu DCACHE=$$dc MULSQR=$$ms FASTBASE=$$fb || fail=$$((fail+1)); \
+	for cpu in m4 m33; do for fpu in 0 1; do for dc in 0 1; do for ms in 0 1; do for fbt in 0:2 1:2 1:4 1:8; do \
+		$(MAKE) -s test CPU=$$cpu FPU=$$fpu DCACHE=$$dc MULSQR=$$ms FASTBASE=$${fbt%:*} TABLES=$${fbt#*:} || fail=$$((fail+1)); \
 	done; done; done; done; done; \
 	echo "failed configs: $$fail"; [ $$fail -eq 0 ]
 
